@@ -35,14 +35,11 @@ serve(async (req) => {
     const isCodeGeneration = isCodeRequest(message);
     console.log('Is code generation request:', isCodeGeneration);
 
-    // Prepare messages for Claude API
+    // Prepare system prompt
     const systemPrompt = getSystemPrompt(isCodeGeneration);
 
+    // Prepare messages for Claude API (only user/assistant messages)
     const messages = [
-      {
-        role: "system",
-        content: systemPrompt
-      },
       ...conversationHistory.map((msg: any) => ({
         role: msg.isUser ? "user" : "assistant",
         content: msg.content
@@ -64,8 +61,9 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'claude-3-5-haiku-20241022',
-        max_tokens: 1500,
-        messages: messages
+        system: systemPrompt,
+        messages: messages,
+        max_tokens: 1500
       })
     });
 
