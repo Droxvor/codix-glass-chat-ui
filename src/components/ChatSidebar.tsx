@@ -1,8 +1,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Menu, X } from 'lucide-react';
+import { Send, Menu, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Message {
   id: string;
@@ -26,8 +28,10 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ isOpen, onToggle }) =>
     },
   ]);
   const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -37,8 +41,8 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ isOpen, onToggle }) =>
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -48,18 +52,62 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ isOpen, onToggle }) =>
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageContent = inputValue;
     setInputValue('');
+    setIsLoading(true);
 
-    // Simulate bot response
-    setTimeout(() => {
+    try {
+      console.log('Sending message to Claude API...');
+      
+      // Get conversation history (excluding the welcome message)
+      const conversationHistory = messages.slice(1);
+      
+      const { data, error } = await supabase.functions.invoke('claude-chat', {
+        body: {
+          message: messageContent,
+          conversationHistory: conversationHistory
+        }
+      });
+
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Fehler beim Aufrufen der Claude API');
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Unbekannter Fehler bei der API-Anfrage');
+      }
+
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: `Das ist eine interessante Frage! Als Codix AI kann ich dir bei der Entwicklung helfen. Lass uns gemeinsam daran arbeiten.`,
+        content: data.response,
         isUser: false,
         timestamp: new Date(),
       };
+
       setMessages(prev => [...prev, botMessage]);
-    }, 1000);
+      console.log('AI response received and added to chat');
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+      
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: `Entschuldigung, es gab einen Fehler beim Verarbeiten deiner Nachricht: ${error.message}. Bitte versuche es erneut.`,
+        isUser: false,
+        timestamp: new Date(),
+      };
+
+      setMessages(prev => [...prev, errorMessage]);
+      
+      toast({
+        title: "Fehler",
+        description: "Es gab ein Problem beim Senden deiner Nachricht. Bitte versuche es erneut.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -117,7 +165,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ isOpen, onToggle }) =>
                         : 'chat-bubble-bot text-foreground'
                     }`}
                   >
-                    <p className="text-sm leading-relaxed">{message.content}</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
                     <div className="flex justify-end mt-1">
                       <span className="text-xs opacity-70">
                         {message.timestamp.toLocaleTimeString('de-DE', {
@@ -129,6 +177,19 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ isOpen, onToggle }) =>
                   </div>
                 </div>
               ))}
+              
+              {/* Loading indicator */}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="chat-bubble-bot p-3 rounded-2xl">
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm text-muted-foreground">Codix AI denkt nach...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div ref={messagesEndRef} />
             </div>
           </div>
@@ -143,16 +204,17 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ isOpen, onToggle }) =>
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Schreibe eine Nachricht..."
+                  disabled={isLoading}
                   className="glass border-white/20 focus:border-cyan-400/50 focus:glow-cyan bg-white/5 text-foreground placeholder:text-muted-foreground"
                 />
               </div>
               <Button
                 onClick={handleSendMessage}
-                disabled={!inputValue.trim()}
-                className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 glow-cyan smooth-transition"
+                disabled={!inputValue.trim() || isLoading}
+                className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 glow-cyan smooth-transition disabled:opacity-50"
                 size="sm"
               >
-                <Send size={16} />
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send size={16} />}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-2 text-center">
