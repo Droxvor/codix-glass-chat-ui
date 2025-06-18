@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Menu, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,9 +15,10 @@ interface Message {
 interface ChatSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
+  onSandboxCreate?: (url: string) => void;
 }
 
-export const ChatSidebar: React.FC<ChatSidebarProps> = ({ isOpen, onToggle }) => {
+export const ChatSidebar: React.FC<ChatSidebarProps> = ({ isOpen, onToggle, onSandboxCreate }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -87,6 +87,17 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ isOpen, onToggle }) =>
 
       setMessages(prev => [...prev, botMessage]);
       console.log('AI response received and added to chat');
+
+      // Handle sandbox creation
+      if (data.sandboxUrl && onSandboxCreate) {
+        console.log('Creating sandbox with URL:', data.sandboxUrl);
+        onSandboxCreate(data.sandboxUrl);
+        
+        toast({
+          title: "CodeSandbox erstellt!",
+          description: "Dein generierter Code wurde in eine neue Sandbox geladen.",
+        });
+      }
 
     } catch (error) {
       console.error('Error sending message:', error);

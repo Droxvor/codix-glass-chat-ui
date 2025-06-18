@@ -5,9 +5,18 @@ import { CodeSandboxIframe } from '@/components/CodeSandboxIframe';
 
 const Index = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentSandboxUrl, setCurrentSandboxUrl] = useState<string | null>(null);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
+  };
+
+  const handleSandboxCreate = (url: string) => {
+    setCurrentSandboxUrl(url);
+  };
+
+  const handleResetToDefault = () => {
+    setCurrentSandboxUrl(null);
   };
 
   return (
@@ -20,7 +29,11 @@ const Index = () => {
       </div>
 
       {/* Chat Sidebar */}
-      <ChatSidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
+      <ChatSidebar 
+        isOpen={sidebarOpen} 
+        onToggle={toggleSidebar}
+        onSandboxCreate={handleSandboxCreate}
+      />
 
       {/* Main Content */}
       <main 
@@ -30,7 +43,11 @@ const Index = () => {
       >
         <div className="h-[calc(100vh-2rem)]">
           {!sidebarOpen ? (
-            <CodeSandboxIframe sidebarOpen={sidebarOpen} />
+            <CodeSandboxIframe 
+              sidebarOpen={sidebarOpen} 
+              sandboxUrl={currentSandboxUrl}
+              onResetToDefault={handleResetToDefault}
+            />
           ) : (
             <div className="h-full flex items-center justify-center">
               <div className="glass-strong p-8 rounded-2xl text-center max-w-md mx-auto">
@@ -41,7 +58,10 @@ const Index = () => {
                   Willkommen bei Codix AI
                 </h1>
                 <p className="text-muted-foreground leading-relaxed">
-                  Schließe den Chat, um den integrierten CodeSandbox-Editor zu sehen und direkt mit der Entwicklung zu beginnen.
+                  {currentSandboxUrl ? 
+                    "Frage nach Code und ich erstelle automatisch eine neue CodeSandbox für dich!" :
+                    "Schließe den Chat, um den integrierten CodeSandbox-Editor zu sehen und direkt mit der Entwicklung zu beginnen."
+                  }
                 </p>
               </div>
             </div>
