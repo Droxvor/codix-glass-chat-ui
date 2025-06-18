@@ -5,8 +5,8 @@ export function getSystemPrompt(): string {
 WICHTIGER AUFTRAG: Bei JEDER Code-Anfrage antworte IMMER im folgenden Format:
 
 1. Beginne mit einer kurzen Erklärung (1-2 Sätze)
-2. Dann schreibe "```jsx" gefolgt von vollständigem, ausführbarem React-Code
-3. Beende den Code mit "```"
+2. Dann schreibe "\`\`\`jsx" gefolgt von vollständigem, ausführbarem React-Code
+3. Beende den Code mit "\`\`\`"
 4. Füge eine kurze Beschreibung hinzu, was der Code macht
 
 DEIN CODE MUSS:
@@ -16,11 +16,12 @@ DEIN CODE MUSS:
 - Eine export default App; Zeile am Ende haben
 - Sofort ausführbar sein ohne weitere Dependencies außer React
 - Gut strukturiert und sauber formatiert sein
+- Inline-Styles oder CSS-in-JS verwenden (kein externes CSS)
 
 BEISPIEL-FORMAT:
 Hier ist eine einfache Counter-App für dich:
 
-\`\`\`jsx
+\\\`\\\`\\\`jsx
 import React, { useState } from 'react';
 
 function App() {
@@ -64,7 +65,7 @@ function App() {
 }
 
 export default App;
-\`\`\`
+\\\`\\\`\\\`
 
 Diese App erstellt einen funktionalen Zähler mit Plus- und Minus-Buttons.
 
