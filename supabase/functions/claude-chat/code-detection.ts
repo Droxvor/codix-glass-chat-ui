@@ -1,13 +1,22 @@
 
-export function isCodeRequest(message: string): boolean {
-  const codeKeywords = [
-    'erstelle', 'create', 'component', 'button', 'react', 'javascript', 'typescript',
-    'html', 'css', 'code', 'app', 'function', 'hook', 'page', 'website'
-  ];
-  return codeKeywords.some(keyword => message.toLowerCase().includes(keyword));
-}
-
 export function extractCode(response: string): string | null {
-  const codeMatch = response.match(/```jsx\n([\s\S]*?)\n```/);
+  // Look for JSX code blocks first
+  let codeMatch = response.match(/```jsx\n([\s\S]*?)\n```/);
+  
+  // If no JSX, look for JavaScript code blocks
+  if (!codeMatch) {
+    codeMatch = response.match(/```javascript\n([\s\S]*?)\n```/);
+  }
+  
+  // If no JavaScript, look for TypeScript code blocks
+  if (!codeMatch) {
+    codeMatch = response.match(/```typescript\n([\s\S]*?)\n```/);
+  }
+  
+  // If no specific language, look for generic code blocks
+  if (!codeMatch) {
+    codeMatch = response.match(/```\n([\s\S]*?)\n```/);
+  }
+  
   return codeMatch ? codeMatch[1] : null;
 }
