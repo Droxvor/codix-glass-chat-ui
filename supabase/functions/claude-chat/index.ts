@@ -47,7 +47,7 @@ serve(async (req) => {
       }
     ];
 
-    console.log('Sending request to Claude API with latest model...');
+    console.log('Sending request to Claude API...');
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -57,21 +57,34 @@ serve(async (req) => {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-opus-4-20250514',
+        model: 'claude-3-5-sonnet-20241022',
         system: systemPrompt,
         messages: messages,
         max_tokens: 2000
       })
     });
 
+    console.log('Claude API response status:', response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Claude API error:', response.status, errorText);
-      throw new Error(`Claude API error: ${response.status} ${errorText}`);
+      
+      // Return a more user-friendly error message
+      return new Response(JSON.stringify({ 
+        response: "Entschuldigung, es gab ein Problem beim Verarbeiten deiner Anfrage. Die Claude API ist momentan nicht verfügbar. Bitte versuche es in ein paar Minuten erneut.",
+        success: false 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const data = await response.json();
     console.log('Claude API response received successfully');
+
+    if (!data.content || !data.content[0] || !data.content[0].text) {
+      throw new Error('Invalid response structure from Claude API');
+    }
 
     const aiResponse = data.content[0].text;
     let sandboxUrl = null;
@@ -109,6 +122,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in claude-chat function:', error);
     return new Response(JSON.stringify({ 
+      response: "Es gab einen technischen Fehler. Bitte versuche es erneut.",
       error: error.message,
       success: false 
     }), {
