@@ -119,48 +119,38 @@ serve(async (req) => {
     let systemPrompt = "Du bist Codix AI, ein intelligenter Code-Assistent. Du hilfst Benutzern beim Programmieren, erklärst Konzepte und unterstützt bei der Entwicklung. Antworte auf Deutsch und sei hilfreich und freundlich. Du kannst bei React, JavaScript, TypeScript, CSS, HTML und allgemeinen Programmierfragen helfen.";
 
     if (isCodeGeneration) {
-      systemPrompt += `
-
-WICHTIG: Da der Benutzer Code erstellen möchte, antworte im folgenden Format:
-
-1. Beginne mit einer kurzen Erklärung (1-2 Sätze)
-2. Dann schreibe "```jsx" gefolgt von einem vollständigen, ausführbaren React-Code
-3. Beende den Code mit "```"
-4. Füge eine kurze Beschreibung hinzu, was der Code macht
-
-Der Code sollte:
-- Eine vollständige React-Komponente oder App sein
-- Alle nötigen Imports enthalten
-- Moderne React-Patterns verwenden (Hooks, funktionale Komponenten)
-- Gut strukturiert und kommentiert sein
-- Sofort ausführbar sein ohne weitere Dependencies außer React
-
-Beispiel-Format:
-Hier ist ein einfacher Button für dich:
-
-\`\`\`jsx
-import React, { useState } from 'react';
-
-function App() {
-  const [count, setCount] = useState(0);
-
-  return (
-    <div style={{ padding: '20px', textAlign: 'center' }}>
-      <h1>Mein Button</h1>
-      <button 
-        onClick={() => setCount(count + 1)}
-        style={{ padding: '10px 20px', fontSize: '16px' }}
-      >
-        Geklickt: {count} mal
-      </button>
-    </div>
-  );
-}
-
-export default App;
-\`\`\`
-
-Diese Komponente erstellt einen klickbaren Button mit einem Zähler.`;
+      systemPrompt += "\n\nWICHTIG: Da der Benutzer Code erstellen möchte, antworte im folgenden Format:\n\n" +
+        "1. Beginne mit einer kurzen Erklärung (1-2 Sätze)\n" +
+        "2. Dann schreibe \"```jsx\" gefolgt von einem vollständigen, ausführbaren React-Code\n" +
+        "3. Beende den Code mit \"```\"\n" +
+        "4. Füge eine kurze Beschreibung hinzu, was der Code macht\n\n" +
+        "Der Code sollte:\n" +
+        "- Eine vollständige React-Komponente oder App sein\n" +
+        "- Alle nötigen Imports enthalten\n" +
+        "- Moderne React-Patterns verwenden (Hooks, funktionale Komponenten)\n" +
+        "- Gut strukturiert und kommentiert sein\n" +
+        "- Sofort ausführbar sein ohne weitere Dependencies außer React\n\n" +
+        "Beispiel-Format:\n" +
+        "Hier ist ein einfacher Button für dich:\n\n" +
+        "```jsx\n" +
+        "import React, { useState } from 'react';\n\n" +
+        "function App() {\n" +
+        "  const [count, setCount] = useState(0);\n\n" +
+        "  return (\n" +
+        "    <div style={{ padding: '20px', textAlign: 'center' }}>\n" +
+        "      <h1>Mein Button</h1>\n" +
+        "      <button \n" +
+        "        onClick={() => setCount(count + 1)}\n" +
+        "        style={{ padding: '10px 20px', fontSize: '16px' }}\n" +
+        "      >\n" +
+        "        Geklickt: {count} mal\n" +
+        "      </button>\n" +
+        "    </div>\n" +
+        "  );\n" +
+        "}\n\n" +
+        "export default App;\n" +
+        "```\n\n" +
+        "Diese Komponente erstellt einen klickbaren Button mit einem Zähler.";
     }
 
     const messages = [
