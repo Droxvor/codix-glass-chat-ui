@@ -8,6 +8,8 @@ interface Message {
   content: string;
   isUser: boolean;
   timestamp: Date;
+  sandboxUrl?: string | null;
+  feedbackMessage?: string;
 }
 
 interface UseChatLogicProps {
@@ -18,7 +20,7 @@ export const useChatLogic = ({ onSandboxCreate }: UseChatLogicProps) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: 'Hallo! Ich bin Codix AI, dein intelligenter Code-Assistent. Wie kann ich dir heute beim Programmieren helfen?',
+      content: 'Hallo! Ich bin Codix AI, dein intelligenter Code-Assistent. Wie kann ich dir heute beim Programmieren helfen?\n\nIch kann für dich:\n• React-Komponenten erstellen\n• Full-Stack-Apps entwickeln\n• Code automatisch in CodeSandbox laden\n• Detaillierte Änderungs-Zusammenfassungen liefern',
       isUser: false,
       timestamp: new Date(),
     },
@@ -53,7 +55,7 @@ export const useChatLogic = ({ onSandboxCreate }: UseChatLogicProps) => {
     setIsLoading(true);
 
     try {
-      console.log('Sending message to Claude API...');
+      console.log('Sending message to Enhanced Claude API...');
       
       // Get conversation history (excluding the welcome message)
       const conversationHistory = messages.slice(1);
@@ -79,19 +81,21 @@ export const useChatLogic = ({ onSandboxCreate }: UseChatLogicProps) => {
         content: data.response,
         isUser: false,
         timestamp: new Date(),
+        sandboxUrl: data.sandboxUrl,
+        feedbackMessage: data.sandboxUrl ? 'Code automatisch in Sandbox geladen' : undefined
       };
 
       setMessages(prev => [...prev, botMessage]);
-      console.log('AI response received and added to chat');
+      console.log('Enhanced AI response received and added to chat');
 
-      // Handle sandbox creation
+      // Handle sandbox creation with enhanced feedback
       if (data.sandboxUrl && onSandboxCreate) {
-        console.log('Creating sandbox with URL:', data.sandboxUrl);
+        console.log('Creating enhanced sandbox with URL:', data.sandboxUrl);
         onSandboxCreate(data.sandboxUrl);
         
         toast({
-          title: "CodeSandbox erstellt!",
-          description: "Dein generierter Code wurde in eine neue Sandbox geladen.",
+          title: "CodeSandbox erstellt! 🚀",
+          description: "Dein generierter Code wurde automatisch bereinigt und in eine neue Sandbox geladen.",
         });
       }
 
@@ -108,7 +112,7 @@ export const useChatLogic = ({ onSandboxCreate }: UseChatLogicProps) => {
       setMessages(prev => [...prev, errorMessage]);
       
       toast({
-        title: "Fehler",
+        title: "Fehler ❌",
         description: "Es gab ein Problem beim Senden deiner Nachricht. Bitte versuche es erneut.",
         variant: "destructive",
       });

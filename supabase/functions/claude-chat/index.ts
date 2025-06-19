@@ -13,7 +13,12 @@ import {
   extractEnvVariables,
   extractSuccess
 } from './code-detection.ts';
-import { getSystemPrompt } from './prompts.ts';
+import { 
+  extractPureCode, 
+  extractAdvancedLovWriteBlocks, 
+  generateChangeSummary 
+} from './code-extraction.ts';
+import { getEnhancedSystemPrompt } from './enhanced-prompts.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,8 +46,8 @@ serve(async (req) => {
     console.log('Received message:', message);
     console.log('Conversation history length:', conversationHistory.length);
 
-    // Prepare system prompt for LovableClaude
-    const systemPrompt = getSystemPrompt();
+    // Prepare enhanced system prompt for LovableClaude
+    const systemPrompt = getEnhancedSystemPrompt();
 
     // Prepare messages for Claude API (only user/assistant messages)
     const messages = [
@@ -56,7 +61,7 @@ serve(async (req) => {
       }
     ];
 
-    console.log('Sending request to Claude API as LovableClaude...');
+    console.log('Sending request to Claude API as Enhanced LovableClaude...');
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -69,11 +74,11 @@ serve(async (req) => {
         model: 'claude-3-5-sonnet-20241022',
         system: systemPrompt,
         messages: messages,
-        max_tokens: 4000 // Increased for more detailed LovableClaude responses with tags
+        max_tokens: 4000
       })
     });
 
-    console.log('Claude API response status:', response.status);
+    console.log('Enhanced Claude API response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -88,19 +93,26 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('LovableClaude response received successfully');
+    console.log('Enhanced LovableClaude response received successfully');
 
     if (!data.content || !data.content[0] || !data.content[0].text) {
       throw new Error('Invalid response structure from Claude API');
     }
 
-    const aiResponse = data.content[0].text;
+    let aiResponse = data.content[0].text;
     let sandboxUrl = null;
     let feedbackMessage = '';
 
+    // Generate and append change summary
+    const changeSummary = generateChangeSummary(aiResponse);
+    if (changeSummary) {
+      aiResponse += changeSummary;
+      console.log('Change summary generated and appended');
+    }
+
     // Process LovableClaude format if detected
     if (containsLovableFormat(aiResponse)) {
-      console.log('LovableClaude format detected - processing structured response...');
+      console.log('Enhanced LovableClaude format detected - processing structured response...');
       
       // Log thinking process if present
       const thinking = extractThinking(aiResponse);
@@ -115,16 +127,20 @@ serve(async (req) => {
       }
 
       // Extract structured data for advanced CodeSandbox creation
-      const lovWriteBlocks = extractLovWriteBlocks(aiResponse);
+      const lovWriteBlocks = extractAdvancedLovWriteBlocks(aiResponse);
       const dependencies = extractDependencies(aiResponse);
       const envVariables = extractEnvVariables(aiResponse);
       const successMessage = extractSuccess(aiResponse);
 
       if (lovWriteBlocks.length > 0 && codesandboxApiKey) {
-        console.log(`Found ${lovWriteBlocks.length} lov-write blocks for CodeSandbox creation`);
+        console.log(`Found ${lovWriteBlocks.length} enhanced lov-write blocks for CodeSandbox creation`);
         
-        const lovableData: LovableClaude = {
-          files: lovWriteBlocks,
+        // Use enhanced blocks with cleaned content
+        const enhancedLovableData: LovableClaude = {
+          files: lovWriteBlocks.map(block => ({
+            path: block.path,
+            content: block.cleanContent // Use cleaned content for sandbox
+          })),
           dependencies: dependencies,
           envVariables: envVariables
         };
@@ -132,11 +148,11 @@ serve(async (req) => {
         // Create title from the original message
         const title = message.length > 50 ? message.substring(0, 50) + '...' : message;
         
-        sandboxUrl = await createAdvancedCodeSandbox(lovableData, title, codesandboxApiKey);
+        sandboxUrl = await createAdvancedCodeSandbox(enhancedLovableData, title, codesandboxApiKey);
         
         if (sandboxUrl) {
-          console.log('Advanced CodeSandbox created successfully:', sandboxUrl);
-          feedbackMessage = `✅ CodeSandbox erstellt mit ${lovWriteBlocks.length} Dateien`;
+          console.log('Enhanced CodeSandbox created successfully:', sandboxUrl);
+          feedbackMessage = `✅ CodeSandbox erstellt mit ${lovWriteBlocks.length} optimierten Dateien`;
           
           if (dependencies.length > 0) {
             feedbackMessage += `, ${dependencies.length} Dependencies`;
@@ -146,11 +162,11 @@ serve(async (req) => {
             feedbackMessage += `, ${Object.keys(envVariables).length} Umgebungsvariablen`;
           }
         } else {
-          console.log('Advanced CodeSandbox creation failed');
+          console.log('Enhanced CodeSandbox creation failed');
           feedbackMessage = '⚠️ CodeSandbox-Erstellung fehlgeschlagen';
         }
       } else if (lovWriteBlocks.length > 0) {
-        console.log('CodeSandbox API key not available for advanced creation');
+        console.log('CodeSandbox API key not available for enhanced creation');
         feedbackMessage = '⚠️ CodeSandbox API nicht verfügbar';
       }
 
@@ -161,9 +177,9 @@ serve(async (req) => {
     } else {
       // Fallback: Try to extract simple code for basic sandbox creation
       if (codesandboxApiKey) {
-        const extractedCode = extractCode(aiResponse);
+        const extractedCode = extractPureCode(aiResponse);
         if (extractedCode) {
-          console.log('Extracted simple code for basic sandbox creation');
+          console.log('Extracted pure code for basic sandbox creation');
           
           const title = message.length > 50 ? message.substring(0, 50) + '...' : message;
           sandboxUrl = await createCodeSandbox(extractedCode, title, codesandboxApiKey);
@@ -197,7 +213,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Error in LovableClaude function:', error);
+    console.error('Error in Enhanced LovableClaude function:', error);
     return new Response(JSON.stringify({ 
       response: "Es gab einen technischen Fehler. Bitte versuche es erneut.",
       error: error.message,
