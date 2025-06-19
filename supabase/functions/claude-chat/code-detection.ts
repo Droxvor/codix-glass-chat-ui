@@ -37,7 +37,7 @@ export function extractCode(response: string): string | null {
 // Extract all lov-write blocks with their file paths
 export function extractLovWriteBlocks(response: string): Array<{path: string, content: string}> {
   const lovWriteBlocks: Array<{path: string, content: string}> = [];
-  const regex = /<lov-write\s+path="([^"]+)">([\s\S]*?)<\/lov-write>/g;
+  const regex = /<lov-write\s+file_path="([^"]+)">([\s\S]*?)<\/lov-write>/g;
   
   let match;
   while ((match = regex.exec(response)) !== null) {
@@ -62,16 +62,26 @@ export function extractDependencies(response: string): string[] {
     // Try to parse as JSON first
     try {
       const depObj = JSON.parse(depContent);
-      Object.keys(depObj).forEach(dep => {
-        dependencies.push(`${dep}@${depObj[dep]}`);
-      });
+      if (typeof depObj === 'object' && depObj !== null) {
+        Object.entries(depObj).forEach(([pkg, version]) => {
+          if (typeof pkg === 'string' && typeof version === 'string') {
+            dependencies.push(`${pkg}@${version}`);
+          }
+        });
+      }
     } catch {
-      // If not JSON, treat as plain text (one dependency per line)
+      // If not valid JSON, try to extract package names from text
       const lines = depContent.split('\n');
       lines.forEach(line => {
         const cleanLine = line.trim();
-        if (cleanLine && !cleanLine.startsWith('//') && !cleanLine.startsWith('#')) {
-          dependencies.push(cleanLine);
+        if (cleanLine && !cleanLine.startsWith('//') && !cleanLine.startsWith('#') && !cleanLine.startsWith('{') && !cleanLine.startsWith('}')) {
+          // Handle package@version format
+          if (cleanLine.includes('@') && !cleanLine.startsWith('@')) {
+            dependencies.push(cleanLine);
+          } else if (cleanLine.length > 0 && !cleanLine.includes('{') && !cleanLine.includes('}')) {
+            // Add @latest if no version specified
+            dependencies.push(`${cleanLine}@latest`);
+          }
         }
       });
     }
