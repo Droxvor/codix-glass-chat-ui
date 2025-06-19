@@ -2,8 +2,17 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
-import { createCodeSandbox } from './codesandbox.ts';
-import { extractCode, containsLovableFormat, extractThinking, extractSecurityScan } from './code-detection.ts';
+import { createCodeSandbox, createAdvancedCodeSandbox, LovableClaude } from './codesandbox.ts';
+import { 
+  extractCode, 
+  containsLovableFormat, 
+  extractThinking, 
+  extractSecurityScan,
+  extractLovWriteBlocks,
+  extractDependencies,
+  extractEnvVariables,
+  extractSuccess
+} from './code-detection.ts';
 import { getSystemPrompt } from './prompts.ts';
 
 const corsHeaders = {
@@ -60,7 +69,7 @@ serve(async (req) => {
         model: 'claude-3-5-sonnet-20241022',
         system: systemPrompt,
         messages: messages,
-        max_tokens: 3000 // Increased for more detailed LovableClaude responses
+        max_tokens: 4000 // Increased for more detailed LovableClaude responses with tags
       })
     });
 
@@ -70,7 +79,6 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error('Claude API error:', response.status, errorText);
       
-      // Return a more user-friendly error message
       return new Response(JSON.stringify({ 
         response: "Entschuldigung, es gab ein Problem beim Verarbeiten deiner Anfrage. LovableClaude ist momentan nicht verfügbar. Bitte versuche es in ein paar Minuten erneut.",
         success: false 
@@ -88,10 +96,11 @@ serve(async (req) => {
 
     const aiResponse = data.content[0].text;
     let sandboxUrl = null;
+    let feedbackMessage = '';
 
-    // Log LovableClaude format detection
+    // Process LovableClaude format if detected
     if (containsLovableFormat(aiResponse)) {
-      console.log('LovableClaude format detected in response');
+      console.log('LovableClaude format detected - processing structured response...');
       
       // Log thinking process if present
       const thinking = extractThinking(aiResponse);
@@ -104,32 +113,83 @@ serve(async (req) => {
       if (securityScan) {
         console.log('Security scan results:', securityScan.substring(0, 200) + '...');
       }
-    }
 
-    // Extract code and create sandbox automatically
-    if (codesandboxApiKey) {
-      const extractedCode = extractCode(aiResponse);
-      if (extractedCode) {
-        console.log('Extracted code for sandbox creation');
+      // Extract structured data for advanced CodeSandbox creation
+      const lovWriteBlocks = extractLovWriteBlocks(aiResponse);
+      const dependencies = extractDependencies(aiResponse);
+      const envVariables = extractEnvVariables(aiResponse);
+      const successMessage = extractSuccess(aiResponse);
+
+      if (lovWriteBlocks.length > 0 && codesandboxApiKey) {
+        console.log(`Found ${lovWriteBlocks.length} lov-write blocks for CodeSandbox creation`);
         
-        // Create a title from the original message
+        const lovableData: LovableClaude = {
+          files: lovWriteBlocks,
+          dependencies: dependencies,
+          envVariables: envVariables
+        };
+
+        // Create title from the original message
         const title = message.length > 50 ? message.substring(0, 50) + '...' : message;
-        sandboxUrl = await createCodeSandbox(extractedCode, title, codesandboxApiKey);
+        
+        sandboxUrl = await createAdvancedCodeSandbox(lovableData, title, codesandboxApiKey);
         
         if (sandboxUrl) {
-          console.log('CodeSandbox created successfully:', sandboxUrl);
+          console.log('Advanced CodeSandbox created successfully:', sandboxUrl);
+          feedbackMessage = `✅ CodeSandbox erstellt mit ${lovWriteBlocks.length} Dateien`;
+          
+          if (dependencies.length > 0) {
+            feedbackMessage += `, ${dependencies.length} Dependencies`;
+          }
+          
+          if (Object.keys(envVariables).length > 0) {
+            feedbackMessage += `, ${Object.keys(envVariables).length} Umgebungsvariablen`;
+          }
         } else {
-          console.log('CodeSandbox creation failed');
+          console.log('Advanced CodeSandbox creation failed');
+          feedbackMessage = '⚠️ CodeSandbox-Erstellung fehlgeschlagen';
         }
-      } else {
-        console.log('No code found in response for sandbox creation');
+      } else if (lovWriteBlocks.length > 0) {
+        console.log('CodeSandbox API key not available for advanced creation');
+        feedbackMessage = '⚠️ CodeSandbox API nicht verfügbar';
+      }
+
+      // Log success message if present
+      if (successMessage) {
+        console.log('Success message:', successMessage.substring(0, 200) + '...');
       }
     } else {
-      console.log('CodeSandbox API key not available');
+      // Fallback: Try to extract simple code for basic sandbox creation
+      if (codesandboxApiKey) {
+        const extractedCode = extractCode(aiResponse);
+        if (extractedCode) {
+          console.log('Extracted simple code for basic sandbox creation');
+          
+          const title = message.length > 50 ? message.substring(0, 50) + '...' : message;
+          sandboxUrl = await createCodeSandbox(extractedCode, title, codesandboxApiKey);
+          
+          if (sandboxUrl) {
+            console.log('Basic CodeSandbox created successfully:', sandboxUrl);
+            feedbackMessage = '✅ Einfache CodeSandbox erstellt';
+          } else {
+            console.log('Basic CodeSandbox creation failed');
+          }
+        } else {
+          console.log('No code found in response for sandbox creation');
+        }
+      } else {
+        console.log('CodeSandbox API key not available');
+      }
+    }
+
+    // Prepare final response
+    let finalResponse = aiResponse;
+    if (feedbackMessage) {
+      finalResponse += `\n\n💾 **CodeSandbox Status:** ${feedbackMessage}`;
     }
 
     return new Response(JSON.stringify({ 
-      response: aiResponse,
+      response: finalResponse,
       sandboxUrl: sandboxUrl,
       success: true 
     }), {
